@@ -104,16 +104,21 @@ elif calc_option == "CGPA Calculator":
             st.info(f"Percentage: {percentage:.2f}%")
 
 # -------------------- PDF EXPORT --------------------
+from fpdf import FPDF
+import base64
+
+# -------------------- PDF EXPORT --------------------
 if sgpa is not None or cgpa is not None:
     student_name = st.text_input("Enter Student Name")
 
-    if st.button("📄 Download Report as PDF"):
-        def generate_pdf(student_name, sgpa, cgpa):
+    if student_name:
+        if st.button("📄 Download Report as PDF"):
+
+            # Generate PDF
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", size=14)
-
-            pdf.cell(200, 10, txt="CGPA & SGPA Report", ln=True, align="C")
+            pdf.cell(200, 10, txt="🎓 BTech SGPA & CGPA Report", ln=True, align="C")
             pdf.ln(10)
             pdf.cell(200, 10, txt=f"Student Name: {student_name}", ln=True)
             if sgpa is not None:
@@ -121,15 +126,16 @@ if sgpa is not None or cgpa is not None:
             if cgpa is not None:
                 pdf.cell(200, 10, txt=f"CGPA: {cgpa:.2f}", ln=True)
 
-            return pdf.output(dest="S").encode("latin1")
+            # Save PDF to memory
+            pdf_output = "report_card.pdf"
+            pdf.output(pdf_output)
 
-        if student_name:
-            pdf_bytes = generate_pdf(student_name, sgpa, cgpa)
-            st.download_button(
-                label="⬇️ Download Report",
-                data=pdf_bytes,
-                file_name="Report_Card.pdf",
-                mime="application/pdf"
-            )
-        else:
-            st.warning("Please enter your name before downloading the PDF.")
+            # Download logic
+            with open(pdf_output, "rb") as file:
+                base64_pdf = base64.b64encode(file.read()).decode('utf-8')
+                href = f'<a href="data:application/pdf;base64,{base64_pdf}" download="Report_Card.pdf">📥 Click here to download your report</a>'
+                st.markdown(href, unsafe_allow_html=True)
+    else:
+        st.warning("Please enter your name to generate PDF.")
+
+
