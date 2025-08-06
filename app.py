@@ -143,3 +143,32 @@ elif calc_type == "CGPA Calculator":
         ).properties(height=350)
 
         st.altair_chart(line_chart, use_container_width=True)
+        from fpdf import FPDF
+
+def generate_pdf(student_name, sgpa, cgpa):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=14)
+
+    pdf.cell(200, 10, txt="STX SGPA & CGPA Report", ln=True, align="C")
+    pdf.ln(10)
+    pdf.cell(200, 10, txt=f"Student Name: {student_name}", ln=True)
+    pdf.cell(200, 10, txt=f"SGPA: {sgpa:.2f}", ln=True)
+    pdf.cell(200, 10, txt=f"CGPA: {cgpa:.2f}", ln=True)
+
+    return pdf.output(dest="S").encode("latin1")
+
+# Add download button
+student_name = st.text_input("Enter Student Name")
+
+if st.button("📄 Download Report as PDF"):
+    if student_name and sgpa and cgpa:
+        pdf_bytes = generate_pdf(student_name, sgpa, cgpa)
+        st.download_button(label="Download Report",
+                           data=pdf_bytes,
+                           file_name="STX_Report_Card.pdf",
+                           mime="application/pdf")
+    else:
+        st.warning("Please enter Student Name and ensure SGPA/CGPA are calculated.")
+
+
