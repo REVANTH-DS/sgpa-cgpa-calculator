@@ -1,177 +1,135 @@
+import streamlit as st
+from fpdf import FPDF
+
+# -------------------- Page Config --------------------
+st.set_page_config(
+    page_title="CGPA & SGPA Calculator",
+    page_icon="🎓",
+    layout="centered"
+)
+
+st.title("🎓 CGPA & SGPA Calculator")
+
+# -------------------- Grade Point Mapping --------------------
+grade_point_map = {
+    "O (10)": 10,
+    "A+ (9)": 9,
+    "A (8)": 8,
+    "B+ (7)": 7,
+    "B (6)": 6,
+    "C (5)": 5,
+    "F (0)": 0,
+    "Ab (0)": 0
+}
+
+# -------------------- Defaults --------------------
 sgpa = None
 cgpa = None
-import streamlit as st
-import pandas as pd
-import altair as alt
 
-# --- Page Config ---
-st.set_page_config(page_title="BTech SGPA & CGPA Calculator", page_icon="🎓")
-st.title("🎓 BTech SGPA & CGPA Calculator with Dashboard")
+# -------------------- Calculator Selection --------------------
+st.sidebar.header("Choose Calculator")
+calc_option = st.sidebar.radio("Select Calculator", ["SGPA Calculator", "CGPA Calculator"])
 
-# --- Sidebar ---
-st.sidebar.title("📘 Choose Calculator")
-calc_type = st.sidebar.radio("Select Calculator", ["SGPA Calculator", "CGPA Calculator"])
+# -------------------- SGPA CALCULATOR --------------------
+if calc_option == "SGPA Calculator":
+    st.subheader("SGPA Calculator")
 
-# --- Grade Mapping ---
-def get_grade_point(percentage):
-    if percentage >= 90:
-        return 10, "O"
-    elif percentage >= 80:
-        return 9, "A+"
-    elif percentage >= 70:
-        return 8, "A"
-    elif percentage >= 60:
-        return 7, "B+"
-    elif percentage >= 50:
-        return 6, "B"
-    elif percentage >= 40:
-        return 5, "C"
-    else:
-        return 0, "F"
+    num_subjects = st.number_input("Enter Number of Subjects", min_value=1, max_value=20, step=1)
 
-def get_classification(cgpa):
-    if cgpa >= 7.5:
-        return "🎖️ Distinction"
-    elif cgpa >= 6.0:
-        return "✅ First Class"
-    elif cgpa >= 5.0:
-        return "⚠️ Second Class"
-    else:
-        return "❌ Fail / Not Eligible"
+    grades = []
+    credits = []
 
-# --- SGPA Logic ---
-def calculate_sgpa(subjects):
-    total_weighted = 0
-    total_credits = 0
-    for sub in subjects:
-        total_weighted += sub['grade_point'] * sub['credits']
-        total_credits += sub['credits']
-    return round(total_weighted / total_credits, 2) if total_credits != 0 else 0.0
-
-# --- CGPA Logic ---
-def calculate_cgpa(sgpa_list):
-    return round(sum(sgpa_list) / len(sgpa_list), 2) if sgpa_list else 0.0
-
-# ========================
-# SGPA Calculator Section
-# ========================
-if calc_type == "SGPA Calculator":
-    st.subheader("🧮 SGPA Calculator (Add subject marks + credits)")
-
-    num_subjects = st.number_input("Enter number of subjects:", min_value=1, max_value=15, value=6, step=1)
-
-    subjects = []
-    data_for_chart = []
+    grade_options = list(grade_point_map.keys())
 
     for i in range(int(num_subjects)):
-        st.markdown(f"### Subject {i+1}")
-        marks = st.number_input(f"Marks Obtained", min_value=0.0, step=1.0, key=f"marks_{i}")
-        max_marks = st.number_input(f"Maximum Marks", min_value=1.0, step=1.0, key=f"max_marks_{i}")
-        credits = st.number_input(f"Credits", min_value=1, max_value=10, step=1, key=f"credits_{i}")
-
-        if max_marks > 0:
-            percentage = (marks / max_marks) * 100
-            grade_point, grade_letter = get_grade_point(percentage)
-            st.info(f"📊 Percentage: **{percentage:.2f}%** | Grade: **{grade_letter}** ({grade_point})")
-
-            subjects.append({
-                "credits": credits,
-                "grade_point": grade_point,
-                "percentage": percentage,
-                "grade": grade_letter,
-                "subject": f"Sub {i+1}"
-            })
-
-            data_for_chart.append({
-                "Subject": f"Sub {i+1}",
-                "Percentage": percentage,
-                "Credits": credits,
-                "Grade": grade_letter
-            })
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            grade = st.selectbox(f"Grade for Subject {i+1}", grade_options, key=f"grade_{i}")
+            grades.append(grade)
+        with col2:
+            credit = st.number_input(f"Credits for Subject {i+1}", min_value=1, max_value=10, step=1, key=f"credit_{i}")
+            credits.append(credit)
 
     if st.button("🎯 Calculate SGPA"):
-        sgpa = calculate_sgpa(subjects)
-        st.success(f"✅ Your SGPA is: **{sgpa}**")
+        total_credits = 0
+        total_grade_points = 0
 
-        df_chart = pd.DataFrame(data_for_chart)
+        for i in range(int(num_subjects)):
+            grade = grades[i]
+            credit = credits[i]
+            grade_point = grade_point_map[grade]
 
-        st.subheader("📊 Subject Performance Dashboard")
-        bar_chart = alt.Chart(df_chart).mark_bar().encode(
-            x='Subject',
-            y='Percentage',
-            color='Grade',
-            tooltip=['Subject', 'Percentage', 'Grade', 'Credits']
-        ).properties(height=350)
+            total_credits += credit
+            total_grade_points += grade_point * credit
 
-        pie_chart = alt.Chart(df_chart).mark_arc().encode(
-            theta=alt.Theta(field="Credits", type="quantitative"),
-            color=alt.Color(field="Grade", type="nominal"),
-            tooltip=['Subject', 'Credits', 'Grade']
-        ).properties(height=350)
+        if total_credits == 0:
+            st.error("Total credits cannot be zero.")
+        else:
+            sgpa = total_grade_points / total_credits
+            cgpa = sgpa  # For now, assume CGPA = SGPA
 
-        st.altair_chart(bar_chart, use_container_width=True)
-        st.altair_chart(pie_chart, use_container_width=True)
+            percentage = (sgpa - 0.75) * 10 if sgpa > 0.75 else 0
+            st.success(f"SGPA: {sgpa:.2f}")
+            st.info(f"Assumed CGPA: {cgpa:.2f}")
+            st.info(f"Percentage: {percentage:.2f}% | Grade: {grades[0]}")
 
-# ========================
-# CGPA Calculator Section
-# ========================
-elif calc_type == "CGPA Calculator":
-    st.subheader("📘 CGPA Calculator")
+# -------------------- CGPA CALCULATOR --------------------
+elif calc_option == "CGPA Calculator":
+    st.subheader("CGPA Calculator")
 
-    num_semesters = st.number_input("Enter number of semesters", min_value=1, max_value=12, value=2, step=1)
+    num_sems = st.number_input("Enter Number of Semesters Completed", min_value=1, max_value=12, step=1)
 
-    sgpas = []
-    data = []
+    sem_sgpas = []
+    sem_credits = []
 
-    for i in range(int(num_semesters)):
-        sgpa = st.number_input(f"SGPA for Semester {i+1}", min_value=0.0, max_value=10.0, step=0.01, key=f"sgpa_{i}")
-        sgpas.append(sgpa)
-        data.append({"Semester": f"Sem {i+1}", "SGPA": sgpa})
+    for i in range(int(num_sems)):
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            sgpa_sem = st.number_input(f"SGPA for Sem {i+1}", min_value=0.0, max_value=10.0, step=0.01, key=f"sgpa_{i}")
+            sem_sgpas.append(sgpa_sem)
+        with col2:
+            credit_sem = st.number_input(f"Credits for Sem {i+1}", min_value=1, max_value=40, step=1, key=f"credit_sem_{i}")
+            sem_credits.append(credit_sem)
 
-    if st.button("🎯 Calculate CGPA"):
-        cgpa = calculate_cgpa(sgpas)
-        classification = get_classification(cgpa)
+    if st.button("📈 Calculate CGPA"):
+        total_credits = sum(sem_credits)
+        weighted_sgpas = sum([sem_sgpas[i] * sem_credits[i] for i in range(int(num_sems))])
 
-        st.success(f"✅ Your CGPA is: **{cgpa}**")
-        st.info(f"📘 Classification: **{classification}**")
+        if total_credits == 0:
+            st.error("Total credits cannot be zero.")
+        else:
+            cgpa = weighted_sgpas / total_credits
+            percentage = (cgpa - 0.75) * 10 if cgpa > 0.75 else 0
+            st.success(f"CGPA: {cgpa:.2f}")
+            st.info(f"Percentage: {percentage:.2f}%")
 
-        df = pd.DataFrame(data)
+# -------------------- PDF EXPORT --------------------
+if sgpa is not None or cgpa is not None:
+    student_name = st.text_input("Enter Student Name")
 
-        st.subheader("📈 CGPA Dashboard – Semester Trend")
-        line_chart = alt.Chart(df).mark_line(point=True).encode(
-            x='Semester',
-            y='SGPA',
-            tooltip=['Semester', 'SGPA']
-        ).properties(height=350)
+    if st.button("📄 Download Report as PDF"):
+        def generate_pdf(student_name, sgpa, cgpa):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=14)
 
-        st.altair_chart(line_chart, use_container_width=True)
-        from fpdf import FPDF
+            pdf.cell(200, 10, txt="CGPA & SGPA Report", ln=True, align="C")
+            pdf.ln(10)
+            pdf.cell(200, 10, txt=f"Student Name: {student_name}", ln=True)
+            if sgpa is not None:
+                pdf.cell(200, 10, txt=f"SGPA: {sgpa:.2f}", ln=True)
+            if cgpa is not None:
+                pdf.cell(200, 10, txt=f"CGPA: {cgpa:.2f}", ln=True)
 
-def generate_pdf(student_name, sgpa, cgpa):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=14)
+            return pdf.output(dest="S").encode("latin1")
 
-    pdf.cell(200, 10, txt="STX SGPA & CGPA Report", ln=True, align="C")
-    pdf.ln(10)
-    pdf.cell(200, 10, txt=f"Student Name: {student_name}", ln=True)
-    pdf.cell(200, 10, txt=f"SGPA: {sgpa:.2f}", ln=True)
-    pdf.cell(200, 10, txt=f"CGPA: {cgpa:.2f}", ln=True)
-
-    return pdf.output(dest="S").encode("latin1")
-
-# Add download button
-student_name = st.text_input("Enter Student Name")
-
-if st.button("📄 Download Report as PDF"):
-    if student_name and sgpa and cgpa:
-        pdf_bytes = generate_pdf(student_name, sgpa, cgpa)
-        st.download_button(label="Download Report",
-                           data=pdf_bytes,
-                           file_name="STX_Report_Card.pdf",
-                           mime="application/pdf")
-    else:
-        st.warning("Please enter Student Name and ensure SGPA/CGPA are calculated.")
-
-
-
+        if student_name:
+            pdf_bytes = generate_pdf(student_name, sgpa, cgpa)
+            st.download_button(
+                label="⬇️ Download Report",
+                data=pdf_bytes,
+                file_name="Report_Card.pdf",
+                mime="application/pdf"
+            )
+        else:
+            st.warning("Please enter your name before downloading the PDF.")
