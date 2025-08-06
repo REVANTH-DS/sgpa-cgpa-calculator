@@ -1,3 +1,5 @@
+sgpa = None
+cgpa = None
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -170,5 +172,6 @@ if st.button("📄 Download Report as PDF"):
                            mime="application/pdf")
     else:
         st.warning("Please enter Student Name and ensure SGPA/CGPA are calculated.")
+
 
 
